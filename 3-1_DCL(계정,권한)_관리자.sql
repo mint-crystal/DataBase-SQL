@@ -120,7 +120,7 @@ CONNECT KUSER/KUSER;
 --시스템 권한 부여
     --GRANT <권한, ...> TO USER<USERNAME>;
 GRANT CREATE SESSION TO KUSER;
-    --접속 시도 : 접속굄
+    --접속 시도 : 접속됨
     CONNECT KUSER/KUSER;
     
 --KUSER 계정으로 KH.EMPLOYEE 조회 시도 : 안 됨
@@ -137,7 +137,6 @@ GRANT SELECT ON KH.EMPLOYEE TO KUSER;
 SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'KUSER';
 --사용자에게 부여되 오브젝트 권환 확인 (관리자)
 SELECT * FROM DBA_TAB_PRIVS WHERE GRANTEE = 'KUSER';
-    
 --현재 접속 계정 시스템 권한 확인
 SELECT * FROM SESSION_PRIVS;
 --현재 접속 계정 오브젝트 권환 확인
@@ -151,3 +150,105 @@ REVOKE SELECT ON KH.EMPLOYEE FROM KUSER;
     --REVOKE <권한, ...> FROM <USERNAME>;
 REVOKE CREATE SESSION FROM KUSER;
 CONNECT KUSER/KUSER; --권한 제거로 오류
+
+--------------------------------------------------------------------------------
+--2020년 11월 25일
+
+--KUSER 권한 확인
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'KUSER';
+SELECT * FROM DBA_TAB_PRIVS WHERE GRANTEE = 'KUSER';
+SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE = 'KUSER';
+--KUSER 접속 테스트
+CONNECT KUSER/KUSER;
+--KUSER 접속 권한, 테이블 생성 권한 부여(시스템 권한)
+GRANT CREATE SESSION, CREATE TABLE TO KUSER;
+--KUSER 계정에 KH계정이 만든 EMPLOYEE 테이블을 조회할 수 있는 권한 부여(오브젝트 권한)
+GRANT SELECT ON KH.EMPLOYEE TO KUSER;
+--KUSER 권한 조회
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'KUSER';
+SELECT * FROM DBA_TAB_PRIVS WHERE GRANTEE = 'KUSER';
+--DEFAULT 테이블 스페이스가 SYSTEM인 경우 테이블 생성 불가능
+    --테이블 스페이스에 대한 권한을 부여해줘야함
+GRANT UNLIMITED TABLESPACE TO KUSER;
+
+--새로운 계정 생성
+SELECT * FROM SESSION_PRIVS;
+CREATE USER KUSER2 IDENTIFIED BY KUSER2;
+
+--KUSER 계정에 WITH ADMIN OPTION 적용 : 다른 사용자에게 시스템 권한 부여 허가
+GRANT CREATE SESSION, CREATE TABLE, UNLIMITED TABLESPACE TO KUSER WITH ADMIN OPTION;
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'KUSER';
+SELECT * FROM KUSER.MEMBER;
+
+--KUSER계정에 WITH GRANT OPTION 적용 : 다른 사용자에게 오브젝드 권한 부여 허가
+GRANT SELECT ON KH.EMPLOYEE TO KUSER WITH GRANT OPTION;
+
+--KUSER 계정에 부여된 권한 제거
+REVOKE CREATE SESSION, CREATE TABLE, UNLIMITED TABLESPACE FROM KUSER;
+REVOKE SELECT ON KH.EMPLOYEE FROM KUSER;
+
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'KUSER';
+SELECT * FROM DBA_TAB_PRIVS WHERE GRANTEE = 'KUSER';
+
+--------------------------------------------------------------------------------
+/*  ROLE
+    사용자에게 허가 할 수 있는 권한들의 집합
+    ROLE을 이용하면 권한 부여와 회수에 용이함
+    
+    -- 설명
+    사용자마다 일일히 권한을 부여하는 것은 번거롭기 때문에 
+        간편하게 권한을 부여할 수 있는 방법으로 ROLE을 제공
+    사용자에게 보다 간편하게 부여할 수 있도록 여러개의 권한을 묶어놓은 것
+     => 사용자 권한 관리를 보다 간편하고 효율적으로 할 수 있게 함
+       다수의 사용자에게 공통적으로 필요한 권한들을 하나의 롤로 묶고,
+       사용자에게는 특정 롤에 대한 권한을 부여할 수 있도록 함.
+       사용자에게 부여한 권한을 수정하고자 할 때에도,
+       롤만 수정하면 그 롤에 대한 권한을 부여받은 사용자들의 권한이 자동으로 수정된다.
+       롤을 활성화하거나 비활성화하여 일시적으로 권한을 부여하고 철회할 수 있음
+       
+    롤의 종류
+    1. 사전 정의된 롤 : 오라클 설치시 시스템에서 기본적으로 제공됨
+        CONNECT, RESOURDCE, DBA 등...
+        CONNECT ROLE
+            사용자가 데이터 베이스에 접속 가능하도록 하기위한 권한이 있는 ROLE
+            CONNECT ROLE 이 부여되지 않으면 계정이 존재하더라도 해당 계정으로 접속을 할 수 없음
+            -- CREATE SESSION
+        RESOURCE ROLE
+            CREATE 구문을 통해 객체를 생성할 수 있는 권한을 모아 놓은 ROLE
+            -- CREATE TRIGGER, CREATE SEQUENCE, CREATE TYPE, CREATE PROCEDURE, 
+            -- CREATE CLUSTER, CREATE OPERATOR, CREATE INDEXTYPE, CREATE TABLE
+        DBA ROLE
+            대부분의 시스템 권한 및 기타 여러가지 ROLE
+            
+    2. 사용자가 정의하는 롤 : CREAET ROLE 명령으로 롤을 생성함
+        롤 생성은 반드시 DBA권한이 있는 사용자만 할 수 있음
+         CREATE ROLE 롤이름;  -- 1. 롤 생성
+         GRANT 권한종류 TO 롤이름;   -- 2. 생성된 롤에 권한 추가
+         GRANT 롤이름 TO 사용자이름; -- 3. 사용자에게 롤 부여        
+         DROP ROLE 롤이름;  -- 4. 롤 제거
+*/
+--------------------------------------------------------------------------------
+--ROLE에 부여된 권한 확인
+    --SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'ROLE 이름';
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'CONNECT';
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'RESOURCE';
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'DBA';
+
+SELECT * FROM DBA_SYS_PRIVS;
+
+--계정에 ROLE 부여
+    --GRENT <ROLE, ...> TO <계정 명>;
+GRANT CONNECT, RESOURCE TO KUSER;
+
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'KUSER';
+
+--계정에 부여된 ROLE 확인
+    --SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE='계정 명';
+SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE = 'KUSER';
+
+--계정에 부여된 ROLE 제거
+    --REVOKE <ROLE,...> FROM <계정명>;
+REVOKE CONNECT, RESOURCE FROM KUSER;
+
+SELECT * FROM DBA_SYS_PRIVS WHERE GRANTEE = 'KUSER';
+SELECT * FROM DBA_ROLE_PRIVS WHERE GRANTEE = 'KUSER';
