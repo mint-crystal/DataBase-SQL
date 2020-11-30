@@ -599,6 +599,10 @@ END;
         FOR <카운트용 변수명> IN [REVERSE] <시작수>..<종료값> LOOP
             반복할 내용;
         END LOOP;
+    3. WHILE LOOP : 조건이 TRUE인 동안 반복
+        WHILE 조건문 LOOP
+            반복할 내용;
+        END LOOP;
 */
 --------------------------------------------------------------------------------
 --LOOP문 사용
@@ -734,5 +738,102 @@ BEGIN
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
         DBMS_OUTPUT.PUT_LINE('--------------------------------------------');
+END;
+/
+
+--WHILE LOOP
+    --1~5까지 출력
+DECLARE
+    N NUMBER := 1;
+BEGIN
+    WHILE N<=5 LOOP
+        DBMS_OUTPUT.PUT_LINE(N);
+        N:= N+1;
+    END LOOP;
+END;
+/
+
+
+--------------------------------------------------------------------------------
+/*
+    시스템 오류 예외처리
+    시스템오류(메모리초과, 인덱스 중복 키, 데이터없음...)
+    오라클이 정의하는 에러로 보통 PL/SQL 실행 엔진이 오류 조건을 탐지하여 발생시키는 예외
+    EXCEPTION(예외)이름을 아는 경우와 모르는 경우에 대하여 사용하는 방법이 다름
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+    예외(EXCEPTION)이름을 아는 경우
+        오라클에서 미리 정의해놓은 EXCEPTION
+        
+    예외처리
+    EXCPTION
+        WHEN 예외이름 THEN 처리할 문장1
+        [WHEN 예외이름 THEN 처리할 문장2 ...]
+        [WHEN OTHERS THEN 처리할 문장3]
+    END;
+    /
+
+    ACCESS_INTO_NULL
+        초기화되지 않은 오브젝트에 값을 할당하려고 할 때
+    CASE_NOT_FOUND
+        CASE문장에서 ELSE구문도 없고 WHEN절에 명시된 조건을 만족하는 것이 없을 경우
+    COLLECTION_IS_NULL
+        초기화되지 않은 중첩 테이블이나 VARRAY같은 컬렉션을 
+        EXISTS외의 다른 메소드로 접근을 시도할 경우     
+    CURSOR_ALREADY_OPEN
+        이미 오픈된 커서를 다시 오픈하려고 시도하는 경우
+    DUP_VAL_ON_INDEX
+        UNIQUE 인덱스가 설정된 컬럼에 중복 데이터를 입력할 경우
+    INVALID_CURSOR
+        허용되지 않은 커서에 접근할 경우 (OPEN되지 않은 커서를 닫으려고 할 경우)
+    INVALID_NUMBER
+        SQL문장에서 문자형 데이터를 숫자형으로 변환할 때 제대로 된 숫자로 변환되지 않을 경우
+    LOGIN_DENIED
+        잘못된 사용자명이나 비밀번호로 접속을 시도할 때
+    NO_DATA_FOUND
+        SELECT INTO 문장의 결과로 선택된 행이 하나도 없을 경우
+*/
+--------------------------------------------------------------------------------
+--중복 데이터 입력 에러(DUP_VAL_ON_INDEX)
+SELECT * FROM DEPARTMENT;
+    --제약조건 확인 : DEPT_ID 컬럼에 PRIMARY KEY 제약조건 설정되어 있음(NOT NULL+UNIQUE)
+SELECT * FROM USER_CONSTRAINTS WHERE TABLE_NAME='DEPARTMENT';
+SELECT * FROM USER_CONS_COLUMNS WHERE CONSTRAINT_NAME = 'DEPARTMENT_PK';
+
+BEGIN
+    INSERT INTO DEPARTMENT VALUES ('D1','기술부','L2');
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('중복된 코드를 입력할 수 없습니다.');
+END;
+/
+--------------------------------------------------------------------------------
+/*
+    EXCEPTION(예외)이름을 모르는 경우
+    선언영역(DECLARE)에 프로그램 지시자인 PRAGMA 키워드와 EXCEPTION_INIT() 함수로
+    예외를 직접 정의하여 사용함
+    - PRAGAM : 컴파일러에게 직접 명령을 내리는 지시자
+    - EXCEPTION_INIT() : 컴파일 시간 명령어 또눈 예외명과 내부 오류코드를 연관짓는 프라그마로
+        컴파일러에게 EXCEPTION으로 선언된 식별자를 지정된 오류번호와 연관짓게 함
+    EXCEPTION 이름을 모르기 때문에 컴파일러에게 예외 이름과 내부 오류코드를 직접 연관지어 알려줌
+    
+    사용방법 : 
+        DECLARE
+            <예외변수명> EXCEPTION; --예외타입의 변수 선언
+            PRAGMA EXCEPTION_INIT(<예외변수명>,<에러코드>);
+         BEGIN;
+            실행내용;
+        EXCEPTION
+            WHEN<예외변수명> THEN 처리내용;
+*/
+--------------------------------------------------------------------------------
+DECLARE
+    UNQ_ERR EXCEPTION;
+    PRAGMA EXCEPTION_INIT(UNQ_ERR, -00001);
+BEGIN
+    INSERT INTO DEPARTMENT VALUES ('D1','기술부','L2');
+EXCEPTION
+    WHEN UNQ_ERR THEN
+        DBMS_OUTPUT.PUT_LINE('중복된 코드입니다.');
 END;
 /
